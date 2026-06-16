@@ -1,0 +1,34 @@
+---
+title: "automatedRecLin"
+subtitle: "Record Linkage Based on an Entropy-Maximizing Classifier"
+date: July 7, 2026
+date-format: "[useR! Conference, Warsaw, Poland<br>]MMMM D, YYYY"
+format:
+  revealjs:
+    slide-number: true
+    transition: fade
+author:
+  - name: Adam Struzik
+    email: adastr5@st.amu.edu.pl
+    orcid: 0009-0002-2547-482X
+    affiliation:
+      - ref: amu
+      - ref: urban
+  - name: Maciej Beręsewicz
+    email: maciej.beresewicz@ue.poznan.pl
+    orcid: 0000-0002-8281-4301
+    affiliation:
+      - ref: pueb
+      - ref: pop
+affiliations:
+  - id: amu
+    name: Faculty of Mathematics and Computer Science, Adam Mickiewicz University in Poznań, Poland
+  - id: urban
+    name: Center for Urban Statistics, Statistical Office in Poznań, Poland
+  - id: pueb
+    name: Department of Statistics, Poznań University of Economics and Business, Poland
+  - id: pop
+    name: Center for the Methodology of Population Studies, Statistical Office in Poznań, Poland
+---
+
+# Test
