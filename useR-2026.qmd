@@ -1,12 +1,13 @@
 ---
 title: "automatedRecLin"
 subtitle: "Record Linkage Based on an Entropy-Maximizing Classifier"
-date: July 7, 2026
+date: July 8, 2026
 date-format: "[useR! Conference, Warsaw, Poland<br>]MMMM D, YYYY"
 format:
   revealjs:
-    slide-number: true
     transition: fade
+bibliography: bibl.bib
+csl: apa.csl
 author:
   - name: Adam Struzik
     email: adastr5@st.amu.edu.pl
@@ -31,4 +32,243 @@ affiliations:
     name: Center for the Methodology of Population Studies, Statistical Office in Poznań, Poland
 ---
 
-# Test
+## Problem
+
+> **Record linkage** --- identifying records that refer to the same entity across two datasets. 
+
+::: columns
+::: {.column width = "45%" style = "font-size: 70%;"}
+**Dataset A**
+
+| name | surname | city |
+|------|---------|------|
+| [Emily]{.fragment .highlight-blue data-fragment-index="1"} | [Johnson]{.fragment .highlight-blue data-fragment-index="1"} | [Chicago]{.fragment .highlight-blue data-fragment-index="1"} |
+| [Michael]{.fragment .highlight-red data-fragment-index="1"} | [Anderson]{.fragment .highlight-red data-fragment-index="1"} | [Seattle]{.fragment .highlight-red data-fragment-index="1"} |
+| [Sarah]{.fragment .highlight-green data-fragment-index="1"} | [Thompson]{.fragment .highlight-green data-fragment-index="1"} | [Boston]{.fragment .highlight-green data-fragment-index="1"} |
+:::
+::: {.column width = "45%" style = "font-size: 70%;"}
+**Dataset B**
+
+| name | surname | city |
+|------|---------|------|
+| [Sara]{.fragment .highlight-green data-fragment-index="1"} | [Tompson]{.fragment .highlight-green data-fragment-index="1"} | [Boston]{.fragment .highlight-green data-fragment-index="1"} |
+| [Emily]{.fragment .highlight-blue data-fragment-index="1"} | [Johnson]{.fragment .highlight-blue data-fragment-index="1"} | [Chicago]{.fragment .highlight-blue data-fragment-index="1"} |
+| [Michael]{.fragment .highlight-red data-fragment-index="1"} | [Andersson]{.fragment .highlight-red data-fragment-index="1"} | [Seatle]{.fragment .highlight-red data-fragment-index="1"} |
+:::
+:::
+
+::: {.fragment data-fragment-index="1"}
+- There are no shared unique identifiers.
+- Names, surnames, and locations may contain typos and discrepancies.
+:::
+
+## Method
+
+```{r}
+#| include: false
+library(automatedRecLin)
+jw <- jarowinkler_complement()
+```
+
+- Starting point: **maximum entropy classification (MEC)** for record linkage [@lee2022].
+- Original idea: compare records using agreement/disagreement (binary) indicators.
+- Our extension: use **continuous comparison functions** instead.
+
+::: {style = "font-size: 70%;"}
+| values | binary comparison | continuous comparison |
+|--------|-------------------|:---------------------:|
+| "Johnson" vs "Johnson" | agreement | `r sprintf("%.3f", jw("Johnson", "Johnson"))` |
+| "Anderson" vs "Andersson" | disagreement | `r sprintf("%.3f", jw("Anderson", "Andersson"))` |
+| "Seattle" vs "Seatle" | disagreement | `r sprintf("%.3f", jw("Seattle", "Seatle"))` |
+:::
+::: {style = "font-size: 50%;"}
+Here, the continuous comparison function is 1 $-$ Jaro-Winkler similarity [@Winkler1990]: 0 means identical values; larger values indicate stronger disagreement.
+:::
+
+## The [`automatedRecLin`](https://cran.r-project.org/package=automatedRecLin) Package
+
+- Implements the approach by @lee2022, as well as its continuous parametric [cf. @Vo2023] and nonparametric [cf. @sugiyama2008] extensions.
+- Provides **fully automatic** record linkage, both supervised and unsupervised.
+- Enables integration with the [`blocking`](https://cran.r-project.org/package=blocking) package [@blocking] via the [`mec_blocking()`](https://ncn-foreigners.ue.poznan.pl/automatedRecLin/reference/mec_blocking.html) function, reducing the computational complexity of the process.
+- Available on [CRAN](https://cran.r-project.org/package=automatedRecLin).
+
+```{r}
+#| include: false
+library(readr)
+library(data.table)
+
+set.seed(42)
+
+data(census)
+data(cis)
+prd <- read_csv("data-raw/prd.csv", show_col_types = FALSE)
+
+setDT(census)
+setDT(cis)
+prd <- as.data.frame(lapply(prd, as.character))
+prd[is.na(prd)] <- ""
+colnames(prd) <- tolower(colnames(prd))
+setDT(prd)
+
+census[, pername1 := gsub("-", "", pername1)]
+cis[, pername1 := gsub("-", "", pername1)]
+prd[, pername1 := gsub("-", "", pername1)]
+
+n_A <- 500
+n_B <- 1000
+ids <- Reduce(intersect, list(census$person_id, prd$person_id, cis$person_id))
+
+p_A <- 0.8
+ids_prd <- sample(ids, n_A)
+matched_individ <- sample(ids_prd, n_A * p_A)
+cis_filtered <- cis[sex != "" & dob_year != "" & dob_mon != ""]
+cis_filtered <- cis[sex == "F" & as.numeric(dob_year) <= 1970 & (as.numeric(dob_mon) %% 2) == 0]
+ids_cis <- sample(setdiff(cis_filtered$person_id, ids_prd), n_B - n_A * p_A)
+ids_cis <- c(matched_individ, ids_cis)
+
+df1 <- prd[person_id %in% ids_prd, ]
+df2 <- cis[person_id %in% ids_cis, ]
+
+matches <- merge(x = df1[, .(x=1:.N, person_id)],
+                 y = df2[, .(y = 1:.N, person_id)],
+                 by = "person_id")
+setnames(matches, c("x", "y"), c("a", "b"))
+set(matches, j = "person_id", value = NULL)
+```
+
+## Interface {auto-animate=true}
+
+```{r}
+#| echo: true
+#| eval: false
+mec(
+  A = df1,
+  B = df2,
+  variables = c(
+    "pername1", "pername2", "sex",
+    "dob_day", "dob_mon", "dob_year"
+  )
+)
+```
+
+::: {style = "font-size: 50%;"}
+Unsupervised MEC with binary comparisons on all key variables.
+:::
+
+## Interface {auto-animate=true}
+
+```{r}
+#| echo: true
+#| eval: false
+mec(
+  A = df1,
+  B = df2,
+  variables = c(
+    "pername1", "pername2", "sex",
+    "dob_day", "dob_mon", "dob_year"
+  ),
+  comparators = list(
+    "pername1" = jarowinkler_complement(),
+    "pername2" = jarowinkler_complement()
+  ),
+  methods = list(
+    "pername1" = "continuous_parametric",
+    "pername2" = "continuous_parametric"
+  )
+)
+```
+
+::: {style = "font-size: 50%;"}
+Unsupervised MEC with continuous comparisons (1 $-$ Jaro-Winkler similarity) on name and surname. We use the parametric approach.
+:::
+
+```{r}
+#| include: false
+
+rl_result_b <- mec(
+  A = df1,
+  B = df2,
+  variables = c(
+    "pername1", "pername2", "sex",
+    "dob_day", "dob_mon", "dob_year"
+  ),
+  true_matches = matches
+)
+
+rl_result_cpar <- mec(
+  A = df1,
+  B = df2,
+  variables = c(
+    "pername1", "pername2", "sex",
+    "dob_day", "dob_mon", "dob_year"
+  ),
+  comparators = list(
+    "pername1" = jarowinkler_complement(),
+    "pername2" = jarowinkler_complement()
+  ),
+  methods = list(
+    "pername1" = "continuous_parametric",
+    "pername2" = "continuous_parametric"
+  ),
+  true_matches = matches
+)
+```
+
+## Example Results
+
+```{r}
+library(knitr)
+
+metrics_b <- rl_result_b$eval_metrics
+metrics_cpar <- rl_result_cpar$eval_metrics
+
+metrics <- data.table(
+  "Method" = c("Binary", "Continuous parametric"),
+  "No. of links" = integer(2),
+  "False Linkage Rate" = numeric(2),
+  "Missing Match Rate" = numeric(2)
+)
+
+metrics[["No. of links"]] <- c(
+  NROW(rl_result_b$M_est),
+  NROW(rl_result_cpar$M_est)
+)
+metrics[["False Linkage Rate"]] <- sprintf(
+  "%.4f",
+  c(
+    metrics_b[1],
+    metrics_cpar[1]
+  )
+)
+metrics[["Missing Match Rate"]] <- sprintf(
+  "%.4f",
+  c(
+    metrics_b[2],
+    metrics_cpar[2]
+  )
+)
+
+kable(metrics)
+```
+
+::: {style = "font-size: 50%;"}
+The true number of matches is 400. Note that False Linkage Rate is equal to 1 $-$ Precision, and Missing Match Rate is equal to 1 $-$ Recall.
+:::
+
+::: {.fragment}
+Observations:
+
+- Continuous comparisons improve error rates.
+- They effectively capture small discrepancies between records.
+:::
+
+## 
+
+[automatedRecLin]{.r-fit-text}
+
+![](qrcode_github.com.png){fig-align="center"}
+
+## References
+
+::: {#refs}
+:::
