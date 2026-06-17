@@ -5,6 +5,7 @@ date: July 8, 2026
 date-format: "[useR! Conference, Warsaw, Poland<br>]MMMM D, YYYY"
 format:
   revealjs:
+    embed-resources: true
     transition: fade
 bibliography: bibl.bib
 csl: apa.csl
