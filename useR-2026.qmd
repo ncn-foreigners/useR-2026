@@ -26,11 +26,11 @@ affiliations:
   - id: amu
     name: Faculty of Mathematics and Computer Science, Adam Mickiewicz University in Poznań, Poland
   - id: urban
-    name: Center for Urban Statistics, Statistical Office in Poznań, Poland
+    name: Centre for Urban Statistics, Statistical Office in Poznań, Poland
   - id: pueb
     name: Department of Statistics, Poznań University of Economics and Business, Poland
   - id: pop
-    name: Center for the Methodology of Population Studies, Statistical Office in Poznań, Poland
+    name: Centre for the Methodology of Population Studies, Statistical Office in Poznań, Poland
 ---
 
 ## Problem
